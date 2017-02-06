@@ -13,7 +13,9 @@ def bfs(init_board, goal):
     n_nodes_expanded, height = 0, 0
 
     q = queue.Queue()
-    q.put( {'board': init_board, 'parent': None, 'empty_r': r, 'empty_c': c} )
+    init_state = {'board': init_board, 'parent': None, 'empty_r': r, 'empty_c': c}
+    q.put( init_state )
+    last_enqueued = init_state
     discovered_boards = {init_board}
 
     while not q.empty():
@@ -37,6 +39,7 @@ def bfs(init_board, goal):
         for nghbr in get_nghbr_states_UDLR(curr_state): # note: not always 4 neighbors
             if nghbr['board'] not in discovered_boards:
                 q.put( nghbr )
+                last_enqueued = nghbr
                 discovered_boards.add( nghbr['board'] )
 
         n_nodes_expanded += 1 # always?
@@ -71,15 +74,15 @@ def dfs(init_board, goal):
             })
             return True
 
-    old_sz = len(discovered_boards)
-    for nghbr in get_nghbr_states_UDLR(curr_state, True): # note: not always 4 neighbors
-        if nghbr['board'] not in discovered_boards:
-            st.append( nghbr )
-            discovered_boards.add( nghbr['board'] )
-    if len(discovered_boards) == old_sz:
-        height = max(height, len(st))
+        old_sz = len(discovered_boards)
+        for nghbr in get_nghbr_states_UDLR(curr_state, True): # note: not always 4 neighbors
+            if nghbr['board'] not in discovered_boards:
+                st.append( nghbr )
+                discovered_boards.add( nghbr['board'] )
+        if len(discovered_boards) == old_sz:
+            height = max(height, get_depth(curr_state))
 
-    n_nodes_expanded += 1 # always?
+        n_nodes_expanded += 1 # always?
 
     return False
 
@@ -97,7 +100,7 @@ def get_nghbr_states_UDLR(parent_state, reverse = False):
         t = parent_board[up_r][c]
         child_board = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['board'])
         if reverse:
-            nghbrs.appendLeft( {'board': child_board, 'parent': parent_state, 'empty_r': up_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Up'} )
+            nghbrs.appendleft( {'board': child_board, 'parent': parent_state, 'empty_r': up_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Up'} )
         else:
             nghbrs.append( {'board': child_board, 'parent': parent_state, 'empty_r': up_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Up'} )
     if r < max_r:
@@ -105,7 +108,7 @@ def get_nghbr_states_UDLR(parent_state, reverse = False):
         t = parent_board[down_r][c]
         child_board = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['board'])
         if reverse:
-            nghbrs.appendLeft( {'board': child_board, 'parent': parent_state, 'empty_r': down_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Down'} )
+            nghbrs.appendleft( {'board': child_board, 'parent': parent_state, 'empty_r': down_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Down'} )
         else:
             nghbrs.append( {'board': child_board, 'parent': parent_state, 'empty_r': down_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Down'} )
 
@@ -114,7 +117,7 @@ def get_nghbr_states_UDLR(parent_state, reverse = False):
         t = parent_board[r][left_c]
         child_board = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['board'])
         if reverse:
-            nghbrs.appendLeft( {'board': child_board, 'parent': parent_state, 'empty_r': r, 'empty_c': left_c, 'move_that_lead_to_this_state': 'Left'} )
+            nghbrs.appendleft( {'board': child_board, 'parent': parent_state, 'empty_r': r, 'empty_c': left_c, 'move_that_lead_to_this_state': 'Left'} )
         else:
             nghbrs.append( {'board': child_board, 'parent': parent_state, 'empty_r': r, 'empty_c': left_c, 'move_that_lead_to_this_state': 'Left'} )
 
@@ -123,7 +126,7 @@ def get_nghbr_states_UDLR(parent_state, reverse = False):
         t = parent_board[r][right_c]
         child_board = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['board'])
         if reverse:
-            nghbrs.appendLeft( {'board': child_board, 'parent': parent_state, 'empty_r': r, 'empty_c': right_c, 'move_that_lead_to_this_state': 'Right'} )
+            nghbrs.appendleft( {'board': child_board, 'parent': parent_state, 'empty_r': r, 'empty_c': right_c, 'move_that_lead_to_this_state': 'Right'} )
         else:
             nghbrs.append( {'board': child_board, 'parent': parent_state, 'empty_r': r, 'empty_c': right_c, 'move_that_lead_to_this_state': 'Right'} )
 
@@ -139,6 +142,16 @@ def get_path_to_goal(final_state):
 
     path.reverse()
     return path
+
+def get_depth(board_state):
+    depth = 0
+    while board_state['parent']:
+        depth += 1
+        board_state = board_state['parent']
+
+    print(depth)
+    return depth
+
 
 def write_result(stats):
     with open('output.txt', 'w') as output_file:
