@@ -13,7 +13,7 @@ def bfs(init_board, goal):
     n_nodes_expanded, height = 0, 0
 
     q = queue.Queue()
-    init_state = {'board': init_board, 'parent': None, 'empty_r': r, 'empty_c': c}
+    init_state = {'board': init_board, 'depth': 0, 'parent': None, 'empty_r': r, 'empty_c': c}
     q.put( init_state )
     last_enqueued = init_state
     discovered_boards = {init_board}
@@ -30,7 +30,7 @@ def bfs(init_board, goal):
                 'fringe_size': qsz,
                 'max_fringe_size': qsz+1,
                 'search_depth': len(path_to_goal),
-                'max_search_depth': get_depth(last_enqueued), # ceil(log(3, 4) + log(len(n_nodes_expanded), 4) - 1), bummer, the tree's not perfect
+                'max_search_depth': last_enqueued['depth'], # ceil(log(3, 4) + log(len(n_nodes_expanded), 4) - 1), bummer, the tree's not perfect
                 'running_time': time.time() - start_t,
                 'max_ram_usage': round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024) #assuming kb (as for Linux)
             })
@@ -52,8 +52,8 @@ def dfs(init_board, goal):
 
     start_t = time.time()
 
-    n_nodes_expanded, height = 0, 0
-    st = [ {'board': init_board, 'parent': None, 'empty_r': r, 'empty_c': c} ]
+    n_nodes_expanded, max_fringe_size, height = 0, 1, 0
+    st = [ {'board': init_board, 'depth': 0, 'parent': None, 'empty_r': r, 'empty_c': c} ]
     discovered_boards = {init_board}
     max_fringe_size = 1
 
@@ -66,9 +66,9 @@ def dfs(init_board, goal):
                 'cost_of_path': len(path_to_goal),
                 'nodes_expanded': n_nodes_expanded,
                 'fringe_size': len(st),
-                'max_fringe_size': height,
+                'max_fringe_size': max_fringe_size,
                 'search_depth': len(path_to_goal),
-                'max_search_depth': height,
+                'max_search_depth': max(height, curr_state['depth']),
                 'running_time': time.time() - start_t,
                 'max_ram_usage': round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024) #assuming kb (as for Linux)
             })
@@ -80,7 +80,9 @@ def dfs(init_board, goal):
                 st.append( nghbr )
                 discovered_boards.add( nghbr['board'] )
         if len(discovered_boards) == old_sz:
-            height = max(height, get_depth(curr_state))
+            height = max(height, curr_state['depth'])
+        else:
+            max_fringe_size = max(max_fringe_size, len(st))
 
         n_nodes_expanded += 1 # always?
 
@@ -94,41 +96,42 @@ def ida():
 def get_nghbr_states_UDLR(parent_state, reverse = False):
     r, c = parent_state['empty_r'], parent_state['empty_c']
     parent_board = parent_state['board']
+    next_depth = parent_state['depth']+1
     nghbrs = deque()
     if r > 0:
         up_r = r-1
         t = parent_board[up_r][c]
         child_board = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['board'])
         if reverse:
-            nghbrs.appendleft( {'board': child_board, 'parent': parent_state, 'empty_r': up_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Up'} )
+            nghbrs.appendleft( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': up_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Up'} )
         else:
-            nghbrs.append( {'board': child_board, 'parent': parent_state, 'empty_r': up_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Up'} )
+            nghbrs.append( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': up_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Up'} )
     if r < max_r:
         down_r = r+1
         t = parent_board[down_r][c]
         child_board = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['board'])
         if reverse:
-            nghbrs.appendleft( {'board': child_board, 'parent': parent_state, 'empty_r': down_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Down'} )
+            nghbrs.appendleft( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': down_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Down'} )
         else:
-            nghbrs.append( {'board': child_board, 'parent': parent_state, 'empty_r': down_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Down'} )
+            nghbrs.append( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': down_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Down'} )
 
     if c > 0:
         left_c = c-1
         t = parent_board[r][left_c]
         child_board = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['board'])
         if reverse:
-            nghbrs.appendleft( {'board': child_board, 'parent': parent_state, 'empty_r': r, 'empty_c': left_c, 'move_that_lead_to_this_state': 'Left'} )
+            nghbrs.appendleft( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': r, 'empty_c': left_c, 'move_that_lead_to_this_state': 'Left'} )
         else:
-            nghbrs.append( {'board': child_board, 'parent': parent_state, 'empty_r': r, 'empty_c': left_c, 'move_that_lead_to_this_state': 'Left'} )
+            nghbrs.append( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': r, 'empty_c': left_c, 'move_that_lead_to_this_state': 'Left'} )
 
     if c < max_c:
         right_c = c+1
         t = parent_board[r][right_c]
         child_board = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['board'])
         if reverse:
-            nghbrs.appendleft( {'board': child_board, 'parent': parent_state, 'empty_r': r, 'empty_c': right_c, 'move_that_lead_to_this_state': 'Right'} )
+            nghbrs.appendleft( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': r, 'empty_c': right_c, 'move_that_lead_to_this_state': 'Right'} )
         else:
-            nghbrs.append( {'board': child_board, 'parent': parent_state, 'empty_r': r, 'empty_c': right_c, 'move_that_lead_to_this_state': 'Right'} )
+            nghbrs.append( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': r, 'empty_c': right_c, 'move_that_lead_to_this_state': 'Right'} )
 
 
     return nghbrs
@@ -143,14 +146,14 @@ def get_path_to_goal(final_state):
     path.reverse()
     return path
 
-def get_depth(board_state):
-    depth = 0
-    while board_state['parent']:
-        depth += 1
-        board_state = board_state['parent']
-
-    print(depth)
-    return depth
+# def get_depth(board_state):
+#     depth = 0
+#     while board_state['parent']:
+#         depth += 1
+#         board_state = board_state['parent']
+#
+#     print(depth)
+#     return depth
 
 
 def write_result(stats):
