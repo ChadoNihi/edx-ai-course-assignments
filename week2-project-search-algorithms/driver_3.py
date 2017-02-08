@@ -5,22 +5,22 @@ import resource
 import sys
 import time
 
-def bfs(init_board, goal):
-    r, c = find_elem(init_board)
+def bfs(init_brd, goal):
+    r, c = find_elem(init_brd)
     if r < 0: return False
 
     start_t = time.time()
     n_nodes_expanded, height = 0, 0
 
     q = queue.Queue()
-    init_state = {'board': init_board, 'depth': 0, 'parent': None, 'empty_r': r, 'empty_c': c}
+    init_state = {'brd': init_brd, 'depth': 0, 'parent': None, 'empty_r': r, 'empty_c': c}
     q.put( init_state )
     last_enqueued = init_state
-    discovered_boards = {init_board}
+    discovered_brds = {init_brd}
 
     while not q.empty():
         curr_state = q.get()
-        if curr_state['board'] == goal:
+        if curr_state['brd'] == goal:
             path_to_goal = get_path_to_goal(curr_state)
             qsz = q.qsize()
             write_result({
@@ -37,29 +37,29 @@ def bfs(init_board, goal):
             return True
 
         for nghbr in get_nghbr_states_UDLR(curr_state): # note: not always 4 neighbors
-            if nghbr['board'] not in discovered_boards:
+            if nghbr['brd'] not in discovered_brds:
                 q.put( nghbr )
                 last_enqueued = nghbr
-                discovered_boards.add( nghbr['board'] )
+                discovered_brds.add( nghbr['brd'] )
 
         n_nodes_expanded += 1 # always?
 
     return False
 
-def dfs(init_board, goal):
-    r, c = find_elem(init_board)
+def dfs(init_brd, goal):
+    r, c = find_elem(init_brd)
     if r < 0: return False
 
     start_t = time.time()
 
     n_nodes_expanded, max_fringe_size, height = 0, 1, 0
-    st = [ {'board': init_board, 'depth': 0, 'parent': None, 'empty_r': r, 'empty_c': c} ]
-    discovered_boards = {init_board}
+    st = [ {'brd': init_brd, 'depth': 0, 'parent': None, 'empty_r': r, 'empty_c': c} ]
+    discovered_brds = {init_brd}
     max_fringe_size = 1
 
     while st:
         curr_state = st.pop()
-        if curr_state['board'] == goal:
+        if curr_state['brd'] == goal:
             path_to_goal = get_path_to_goal(curr_state)
             write_result({
                 'path_to_goal': path_to_goal,
@@ -74,12 +74,12 @@ def dfs(init_board, goal):
             })
             return True
 
-        old_sz = len(discovered_boards)
+        old_sz = len(discovered_brds)
         for nghbr in get_nghbr_states_UDLR(curr_state, True): # note: not always 4 neighbors
-            if nghbr['board'] not in discovered_boards:
+            if nghbr['brd'] not in discovered_brds:
                 st.append( nghbr )
-                discovered_boards.add( nghbr['board'] )
-        if len(discovered_boards) == old_sz:
+                discovered_brds.add( nghbr['brd'] )
+        if len(discovered_brds) == old_sz:
             height = max(height, curr_state['depth'])
         else:
             max_fringe_size = max(max_fringe_size, len(st))
@@ -88,50 +88,110 @@ def dfs(init_board, goal):
 
     return False
 
-def ast():
-    pass
-def ida():
-    pass
+def ast(init_brd, goal):
+    r, c = find_elem(init_brd)
+    if r < 0: return False
+
+    start_t = time.time()
+
+    height, max_fringe_size = 0, 1
+
+    pq = queue.PriorityQueue()
+    init_state = {'brd': init_brd, 'depth': 0, 'parent': None, 'empty_r': r, 'empty_c': c}
+    pq.put( (h(init_brd), time.time(), init_state) )
+    frontier = {init_brd}
+    explored = set()
+
+    while not pq.empty():
+        curr_g, _t, curr_state = pq.get()
+        if curr_state['brd'] in explored:
+            continue
+        frontier.remove(curr_state['brd'])
+        explored.add(curr_state['brd'])
+
+        if curr_state['brd'] == goal:
+            path_to_goal = get_path_to_goal(curr_state)
+            write_result({
+                'path_to_goal': path_to_goal,
+                'cost_of_path': len(path_to_goal),
+                'nodes_expanded': len(explored),
+                'fringe_size': len(frontier),
+                'max_fringe_size': max(max_fringe_size, len(frontier)),
+                'search_depth': len(path_to_goal),
+                'max_search_depth': max(height, curr_state['depth']),
+                'running_time': time.time() - start_t,
+                'max_ram_usage': round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024) #assuming kb (as for Linux)
+            })
+            return True
+        old_sz = len(frontier)
+        for nghbr in get_nghbr_states_UDLR(curr_state): # note: not always 4 neighbors
+            if nghbr['brd'] not in frontier and nghbr['brd'] not in explored:
+                pq.put( (h(nghbr['brd'])+curr_g, time.time(), nghbr) )
+                frontier.add( nghbr['brd'] )
+            elif nghbr['brd'] in frontier:
+                pq.put( (h(nghbr['brd'])+curr_g, time.time(), nghbr) )
+        if len(frontier) <= old_sz:
+            max_fringe_size = max(max_fringe_size, len(frontier))
+            height = max(height, curr_state['depth'])
+
+
+    return False
+
+def ida(init_brd, goal):
+    r, c = find_elem(init_brd)
+    if r < 0: return False
+
+    start_t = time.time()
+
+def h(brd):
+    n = len(brd)
+    dists = []
+    #return sum([abs(r-v//n)+abs(c-v%n) for c, v in enumerate(row) for r, row in enumerate(brd)])
+    for r, row in enumerate(brd):
+        for c, v in enumerate(row):
+            dists.append(abs(r-v//n)+abs(c-v%n))
+
+    return sum(dists)
 
 def get_nghbr_states_UDLR(parent_state, reverse = False):
     r, c = parent_state['empty_r'], parent_state['empty_c']
-    parent_board = parent_state['board']
+    parent_brd = parent_state['brd']
     next_depth = parent_state['depth']+1
     nghbrs = deque()
     if r > 0:
         up_r = r-1
-        t = parent_board[up_r][c]
-        child_board = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['board'])
+        t = parent_brd[up_r][c]
+        child_brd = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['brd'])
         if reverse:
-            nghbrs.appendleft( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': up_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Up'} )
+            nghbrs.appendleft( {'brd': child_brd, 'depth': next_depth, 'parent': parent_state, 'empty_r': up_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Up'} )
         else:
-            nghbrs.append( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': up_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Up'} )
+            nghbrs.append( {'brd': child_brd, 'depth': next_depth, 'parent': parent_state, 'empty_r': up_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Up'} )
     if r < max_r:
         down_r = r+1
-        t = parent_board[down_r][c]
-        child_board = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['board'])
+        t = parent_brd[down_r][c]
+        child_brd = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['brd'])
         if reverse:
-            nghbrs.appendleft( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': down_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Down'} )
+            nghbrs.appendleft( {'brd': child_brd, 'depth': next_depth, 'parent': parent_state, 'empty_r': down_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Down'} )
         else:
-            nghbrs.append( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': down_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Down'} )
+            nghbrs.append( {'brd': child_brd, 'depth': next_depth, 'parent': parent_state, 'empty_r': down_r, 'empty_c': c, 'move_that_lead_to_this_state': 'Down'} )
 
     if c > 0:
         left_c = c-1
-        t = parent_board[r][left_c]
-        child_board = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['board'])
+        t = parent_brd[r][left_c]
+        child_brd = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['brd'])
         if reverse:
-            nghbrs.appendleft( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': r, 'empty_c': left_c, 'move_that_lead_to_this_state': 'Left'} )
+            nghbrs.appendleft( {'brd': child_brd, 'depth': next_depth, 'parent': parent_state, 'empty_r': r, 'empty_c': left_c, 'move_that_lead_to_this_state': 'Left'} )
         else:
-            nghbrs.append( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': r, 'empty_c': left_c, 'move_that_lead_to_this_state': 'Left'} )
+            nghbrs.append( {'brd': child_brd, 'depth': next_depth, 'parent': parent_state, 'empty_r': r, 'empty_c': left_c, 'move_that_lead_to_this_state': 'Left'} )
 
     if c < max_c:
         right_c = c+1
-        t = parent_board[r][right_c]
-        child_board = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['board'])
+        t = parent_brd[r][right_c]
+        child_brd = tuple(tuple(0 if elem == t else t if elem == 0 else elem for elem in row) for row in parent_state['brd'])
         if reverse:
-            nghbrs.appendleft( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': r, 'empty_c': right_c, 'move_that_lead_to_this_state': 'Right'} )
+            nghbrs.appendleft( {'brd': child_brd, 'depth': next_depth, 'parent': parent_state, 'empty_r': r, 'empty_c': right_c, 'move_that_lead_to_this_state': 'Right'} )
         else:
-            nghbrs.append( {'board': child_board, 'depth': next_depth, 'parent': parent_state, 'empty_r': r, 'empty_c': right_c, 'move_that_lead_to_this_state': 'Right'} )
+            nghbrs.append( {'brd': child_brd, 'depth': next_depth, 'parent': parent_state, 'empty_r': r, 'empty_c': right_c, 'move_that_lead_to_this_state': 'Right'} )
 
 
     return nghbrs
@@ -146,11 +206,11 @@ def get_path_to_goal(final_state):
     path.reverse()
     return path
 
-# def get_depth(board_state):
+# def get_depth(brd_state):
 #     depth = 0
-#     while board_state['parent']:
+#     while brd_state['parent']:
 #         depth += 1
-#         board_state = board_state['parent']
+#         brd_state = brd_state['parent']
 #
 #     print(depth)
 #     return depth
@@ -168,8 +228,8 @@ def write_result(stats):
         output_file.write('running_time: ' + str(stats['running_time']) + '\n')
         output_file.write('max_ram_usage: ' + str(stats['max_ram_usage']))
 
-def find_elem(board, elem = 0):
-    for i, row in enumerate(board):
+def find_elem(brd, elem = 0):
+    for i, row in enumerate(brd):
         for j, val in enumerate(row):
             if val == elem:
                 return i, j
@@ -187,7 +247,7 @@ if n != sqrt(len(nums)):
     raise ValueError('Cannot make a square matrix from the given number of numbers')
 
 max_r = max_c = n-1
-init_board = tuple(tuple(nums[i:i+n]) for i in range(0, len(nums), n))
+init_brd = tuple(tuple(nums[i:i+n]) for i in range(0, len(nums), n))
 
 search_type_to_fun = {
     'bfs': bfs,
@@ -198,6 +258,6 @@ search_type_to_fun = {
 
 if search_type in search_type_to_fun:
     goal_nums = tuple(range(0, len(nums)))
-    search_type_to_fun[search_type](init_board, tuple(goal_nums[i:i+n] for i in range(0, len(goal_nums), n)))
+    search_type_to_fun[search_type](init_brd, tuple(goal_nums[i:i+n] for i in range(0, len(goal_nums), n)))
 else:
     raise ValueError('Invalid search method. Allowed: bfs, dfs, ast, ida')
