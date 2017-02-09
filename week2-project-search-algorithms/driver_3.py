@@ -143,6 +143,65 @@ def ida(init_brd, goal):
 
     start_t = time.time()
 
+    bound = h(init_brd)
+    mem = {'n_nodes_expanded': 0}
+
+    while 'path_to_goal' not in mem:
+        mem = hdls(init_brd, goal, bound, mem)
+        bound += 1
+
+    write_result({
+        'path_to_goal': mem['path_to_goal'],
+        'cost_of_path': len(mem['path_to_goal']),
+        'nodes_expanded': len(mem['n_nodes_expanded']),
+
+        'fringe_size': len(frontier),
+        'max_fringe_size': max(max_fringe_size, len(frontier)),
+        'search_depth': len(path_to_goal),
+        'max_search_depth': max(height, curr_state['depth']),
+        'running_time': time.time() - start_t,
+        'max_ram_usage': round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024) #assuming kb (as for Linux)
+    })
+    return True
+
+def hdls(init_brd, goal, bound, stats):
+    height, max_fringe_size = 0, 1
+
+    pq = queue.PriorityQueue()
+    init_state = {'brd': init_brd, 'depth': 0, 'parent': None, 'empty_r': r, 'empty_c': c}
+    pq.put( (h(init_brd), time.time(), init_state) )
+    frontier = {init_brd}
+    explored = set()
+
+    while not pq.empty():
+        curr_g, _t, curr_state = pq.get()
+        if curr_state['brd'] in explored:
+            continue
+        frontier.remove(curr_state['brd'])
+        explored.add(curr_state['brd'])
+
+        if curr_state['brd'] == goal:
+            stats['path_to_goal'] = get_path_to_goal(curr_state)
+            stats['n_nodes_expanded'] = len(explored)
+
+            return stats
+        old_sz = len(frontier)
+        for nghbr in get_nghbr_states_UDLR(curr_state): # note: not always 4 neighbors
+            f = h(nghbr['brd'])+curr_g
+            if f > bound:
+                continue
+            elif nghbr['brd'] not in frontier and nghbr['brd'] not in explored:
+                pq.put( (f, time.time(), nghbr) )
+                frontier.add( nghbr['brd'] )
+            elif nghbr['brd'] in frontier:
+                pq.put( (f, time.time(), nghbr) )
+        if len(frontier) <= old_sz:
+            max_fringe_size = max(max_fringe_size, len(frontier))
+            height = max(height, curr_state['depth'])
+
+
+    return stats
+
 def h(brd):
     n = len(brd)
     dists = []
