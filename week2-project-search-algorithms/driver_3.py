@@ -107,7 +107,6 @@ def ast(init_brd, goal):
         if curr_state['brd'] in explored:
             continue
         frontier.remove(curr_state['brd'])
-        explored.add(curr_state['brd'])
 
         if curr_state['brd'] == goal:
             path_to_goal = get_path_to_goal(curr_state)
@@ -123,6 +122,7 @@ def ast(init_brd, goal):
                 'max_ram_usage': round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024) #assuming kb (as for Linux)
             })
             return True
+
         old_sz = len(frontier)
         for nghbr in get_nghbr_states_UDLR(curr_state): # note: not always 4 neighbors
             if nghbr['brd'] not in frontier and nghbr['brd'] not in explored:
@@ -134,6 +134,7 @@ def ast(init_brd, goal):
             max_fringe_size = max(max_fringe_size, len(frontier))
             height = max(height, curr_state['depth'])
 
+        explored.add(curr_state['brd'])
 
     return False
 
@@ -179,7 +180,6 @@ def hdls(init_brd, goal, empty_r, empty_c, bound, mem):
         if curr_state['brd'] in explored:
             continue
         frontier.remove(curr_state['brd'])
-        explored.add(curr_state['brd'])
 
         if curr_state['brd'] == goal:
             mem['path_to_goal'] = get_path_to_goal(curr_state)
@@ -203,6 +203,7 @@ def hdls(init_brd, goal, empty_r, empty_c, bound, mem):
             max_fringe_size = max(max_fringe_size, len(frontier))
             height = max(height, curr_state['depth'])
 
+        explored.add(curr_state['brd'])
 
     return mem
 
