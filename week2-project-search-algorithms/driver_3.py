@@ -94,7 +94,7 @@ def ast(init_brd, goal):
 
     start_t = time.time()
 
-    height, max_fringe_size = 0, 1
+    height, max_fringe_size = 0, 0
 
     pq = queue.PriorityQueue()
     init_state = {'brd': init_brd, 'depth': 0, 'parent': None, 'empty_r': r, 'empty_c': c}
@@ -103,6 +103,7 @@ def ast(init_brd, goal):
     explored = set()
 
     while not pq.empty():
+        max_fringe_size = max(max_fringe_size, len(frontier))
         curr_g, _t, curr_state = pq.get()
         if curr_state['brd'] in explored:
             continue
@@ -131,7 +132,6 @@ def ast(init_brd, goal):
             elif nghbr['brd'] in frontier:
                 pq.put( (h(nghbr['brd'])+curr_g, time.time(), nghbr) )
         if len(frontier) <= old_sz:
-            max_fringe_size = max(max_fringe_size, len(frontier))
             height = max(height, curr_state['depth'])
 
         explored.add(curr_state['brd'])
@@ -145,7 +145,7 @@ def ida(init_brd, goal):
     start_t = time.time()
 
     bound = h(init_brd)
-    mem = {'n_nodes_expanded': 0}
+    mem = {'n_nodes_expanded': 0, 'max_fringe_size': 0, 'max_search_depth': 0}
 
     while 'path_to_goal' not in mem:
         mem = hdls(init_brd, goal, r, c, bound, mem)
@@ -167,8 +167,6 @@ def ida(init_brd, goal):
 def hdls(init_brd, goal, empty_r, empty_c, bound, mem):
     if init_brd[empty_r][empty_c]: raise ValueError("Wrong coordinates of an empty cell.")
 
-    height, max_fringe_size = 0, 1
-
     pq = queue.PriorityQueue()
     init_state = {'brd': init_brd, 'depth': 0, 'parent': None, 'empty_r': empty_r, 'empty_c': empty_c}
     pq.put( (h(init_brd), time.time(), init_state) )
@@ -176,6 +174,7 @@ def hdls(init_brd, goal, empty_r, empty_c, bound, mem):
     explored = set()
 
     while not pq.empty():
+        mem['max_fringe_size'] = max(mem['max_fringe_size'], len(frontier))
         curr_g, _t, curr_state = pq.get()
         if curr_state['brd'] in explored:
             continue
@@ -183,12 +182,9 @@ def hdls(init_brd, goal, empty_r, empty_c, bound, mem):
 
         if curr_state['brd'] == goal:
             mem['path_to_goal'] = get_path_to_goal(curr_state)
-            mem['n_nodes_expanded'] += len(explored)
             mem['fringe_size'] = len(frontier)
-            mem['max_fringe_size'] = max(max_fringe_size, len(frontier))
-            mem['max_search_depth'] = max(height, curr_state['depth'])
+            break
 
-            return mem
         old_sz = len(frontier)
         for nghbr in get_nghbr_states_UDLR(curr_state): # note: not always 4 neighbors
             f = h(nghbr['brd'])+curr_g
@@ -200,10 +196,13 @@ def hdls(init_brd, goal, empty_r, empty_c, bound, mem):
             elif nghbr['brd'] in frontier:
                 pq.put( (f, time.time(), nghbr) )
         if len(frontier) <= old_sz:
-            max_fringe_size = max(max_fringe_size, len(frontier))
-            height = max(height, curr_state['depth'])
+            mem['max_search_depth'] = max(mem['max_search_depth'], curr_state['depth'])
 
         explored.add(curr_state['brd'])
+
+    mem['n_nodes_expanded'] += len(explored)
+    mem['max_fringe_size'] = max(mem['max_fringe_size'], len(frontier))
+    mem['max_search_depth'] = max(mem['max_search_depth'], curr_state['depth'])
 
     return mem
 
