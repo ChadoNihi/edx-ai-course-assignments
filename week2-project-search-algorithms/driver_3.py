@@ -147,28 +147,29 @@ def ida(init_brd, goal):
     mem = {'n_nodes_expanded': 0}
 
     while 'path_to_goal' not in mem:
-        mem = hdls(init_brd, goal, bound, mem)
+        mem = hdls(init_brd, goal, r, c, bound, mem)
         bound += 1
 
     write_result({
         'path_to_goal': mem['path_to_goal'],
         'cost_of_path': len(mem['path_to_goal']),
-        'nodes_expanded': len(mem['n_nodes_expanded']),
-
-        'fringe_size': len(frontier),
-        'max_fringe_size': max(max_fringe_size, len(frontier)),
-        'search_depth': len(path_to_goal),
-        'max_search_depth': max(height, curr_state['depth']),
+        'nodes_expanded': mem['n_nodes_expanded'],
+        'fringe_size': mem['fringe_size'],
+        'max_fringe_size': mem['max_fringe_size'],
+        'search_depth': len(mem['path_to_goal']),
+        'max_search_depth': mem['max_search_depth'],
         'running_time': time.time() - start_t,
         'max_ram_usage': round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024) #assuming kb (as for Linux)
     })
     return True
 
-def hdls(init_brd, goal, bound, stats):
+def hdls(init_brd, goal, empty_r, empty_c, bound, mem):
+    if init_brd[empty_r][empty_c]: raise ValueError("Wrong coordinates of an empty cell.")
+
     height, max_fringe_size = 0, 1
 
     pq = queue.PriorityQueue()
-    init_state = {'brd': init_brd, 'depth': 0, 'parent': None, 'empty_r': r, 'empty_c': c}
+    init_state = {'brd': init_brd, 'depth': 0, 'parent': None, 'empty_r': empty_r, 'empty_c': empty_c}
     pq.put( (h(init_brd), time.time(), init_state) )
     frontier = {init_brd}
     explored = set()
@@ -181,10 +182,13 @@ def hdls(init_brd, goal, bound, stats):
         explored.add(curr_state['brd'])
 
         if curr_state['brd'] == goal:
-            stats['path_to_goal'] = get_path_to_goal(curr_state)
-            stats['n_nodes_expanded'] = len(explored)
+            mem['path_to_goal'] = get_path_to_goal(curr_state)
+            mem['n_nodes_expanded'] += len(explored)
+            mem['fringe_size'] = len(frontier)
+            mem['max_fringe_size'] = max(max_fringe_size, len(frontier))
+            mem['max_search_depth'] = max(height, curr_state['depth'])
 
-            return stats
+            return mem
         old_sz = len(frontier)
         for nghbr in get_nghbr_states_UDLR(curr_state): # note: not always 4 neighbors
             f = h(nghbr['brd'])+curr_g
@@ -200,7 +204,7 @@ def hdls(init_brd, goal, bound, stats):
             height = max(height, curr_state['depth'])
 
 
-    return stats
+    return mem
 
 def h(brd):
     n = len(brd)
