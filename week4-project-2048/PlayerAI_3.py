@@ -1,4 +1,5 @@
 #from math import inf
+from math import sqrt
 from operator import itemgetter
 from random import random
 from time import perf_counter
@@ -14,7 +15,7 @@ class PlayerAI(BaseAI):
     PROB_4 = 0
     TILL_DEPTH = 5
     TIME_LIMIT = 0.1
-    WEIGHTS = {'empty_cell_bonus': 2.5, 'maxVal': 0.02, 'merge_potential': 5, 'monotonicity': 1}
+    WEIGHTS = {'empty_cell_bonus': 3, 'maxVal': 0.05, 'max_val_is_in_corner': 40, 'merge_potential': 5, 'monotonicity': 1}
 
     def getMove(self, grid):
         startT = perf_counter()
@@ -69,16 +70,16 @@ class PlayerAI(BaseAI):
             return -inf
 
         maxVal = grid.getMaxTile()
-        return (self.monotone_triangle_h(grid)
+        maxValInCorner = 1 if grid[0][0]==maxVal or grid[0][-1]==maxVal or grid[-1][0]==maxVal or grid[-1][-1]==maxVal else 0
+        return (maxValInCorner * self.WEIGHTS['max_val_is_in_corner'] * sqrt(maxVal)
                 + maxVal * self.WEIGHTS['maxVal']
                 + max(self.merge_potential_h(grid, LEFT, RIGHT), self.merge_potential_h(grid, UP, DOWN)) * self.WEIGHTS['merge_potential']
-                # + self.smoothness_h(grid)
                 + (numOfEmptyCells-1) * self.WEIGHTS['empty_cell_bonus'])
 
-    def monotone_triangle_h(self, grid):
-        score = 0
-
-        return score
+    # def monotone_triangle_h(self, grid):
+    #     score = 0
+    #
+    #     return score
 
     def merge_potential_h(self, grid, dir, dirOpp):
         movedGrid = grid.clone()
