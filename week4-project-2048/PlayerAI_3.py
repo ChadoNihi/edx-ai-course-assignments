@@ -1,27 +1,30 @@
-from math import inf
+#from math import inf
 from operator import itemgetter
 from random import random
 from time import perf_counter
 
-from random import randint
-from BaseAI import BaseAI_3
+from BaseAI_3 import BaseAI
+
+inf = 999999
+
+(UP, DOWN, LEFT, RIGHT) = range(4)
 
 class PlayerAI(BaseAI):
-    EMPTY_CELL_BONUS = 1
     GRID_SZ = 4
     PROB_4 = 0
     TILL_DEPTH = 5
     TIME_LIMIT = 0.1
+    WEIGHTS = {'empty_cell_bonus': 2.5, 'maxVal': 0.02, 'merge_potential': 5, 'monotonicity': 1}
 
     def getMove(self, grid):
         startT = perf_counter()
         moves = grid.getAvailableMoves()
-        v = -inf
+        v = -inf-1
         bestDir = None
         for dir in moves:
             nextGrid = grid.clone()
             nextGrid.move(dir)
-            vCand = max(v, self.minimax(nextGrid, a, b, 1, startT, False))
+            vCand = max(v, self.minimax(nextGrid, -inf, inf, 1, startT, False))
 
             if vCand > v:
                 v = vCand
@@ -59,19 +62,41 @@ class PlayerAI(BaseAI):
 
             return v
 
-    def h(grid):
-        numOfEmptyCells = 0
-        for x in range(self.GRID_SZ):
-            for y in range(self.GRID_SZ):
-                if not grid.map[x][y]: numOfEmptyCells += 1
+    def h(self, grid):
+        numOfEmptyCells = self.countEmptyCells(grid)
 
         if not numOfEmptyCells:
             return -inf
 
+        maxVal = grid.getMaxTile()
         return (self.monotone_triangle_h(grid)
-                + max(self.hor_adjac_h(grid), self.vert_adjac_h(grid))
+                + maxVal * self.WEIGHTS['maxVal']
+                + max(self.merge_potential_h(grid, LEFT, RIGHT), self.merge_potential_h(grid, UP, DOWN)) * self.WEIGHTS['merge_potential']
                 # + self.smoothness_h(grid)
-                + self.EMPTY_CELL_BONUS*(numOfEmptyCells-1))
+                + (numOfEmptyCells-1) * self.WEIGHTS['empty_cell_bonus'])
 
-    def monotone_triangle_h(grid):
-        pass
+    def monotone_triangle_h(self, grid):
+        score = 0
+
+        return score
+
+    def merge_potential_h(self, grid, dir, dirOpp):
+        movedGrid = grid.clone()
+        numOfEmptyCellsBeforeMove = self.countEmptyCells(movedGrid)
+
+        movedGrid.move(dir)
+        numOfEmptyCellsAFTERMove = self.countEmptyCells(movedGrid)
+
+        movedGrid = grid.clone()
+        movedGrid.move(dirOpp)
+
+        return max(numOfEmptyCellsAFTERMove - numOfEmptyCellsBeforeMove,
+                    self.countEmptyCells(movedGrid) - numOfEmptyCellsBeforeMove)
+
+    def countEmptyCells(self, grid):
+        numOfEmptyCells = 0
+        for row in grid.map:
+            for val in row:
+                if not val: numOfEmptyCells += 1
+
+        return numOfEmptyCells
