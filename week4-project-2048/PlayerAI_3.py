@@ -13,9 +13,9 @@ inf = 999999
 class PlayerAI(BaseAI):
     GRID_SZ = 4
     PROB_4 = 0
-    TILL_DEPTH = 5
+    TILL_DEPTH = 4
     TIME_LIMIT = 0.1
-    WEIGHTS = {'empty_cell_bonus': 3, 'maxVal': 0.05, 'max_val_is_in_corner': 40, 'merge_potential': 5, 'monotonicity': 1}
+    WEIGHTS = {'empty_cell_bonus': 3, 'maxVal': 0.06, 'max_val_is_in_corner': 35, 'merge_potential': 5}
 
     def getMove(self, grid):
         startT = perf_counter()
@@ -69,9 +69,13 @@ class PlayerAI(BaseAI):
         if not numOfEmptyCells:
             return -inf
 
+        # maxVal, pos, nextMaxVal, posNext = self.get_two_max_vals_w_pos(grid)
+        # maxValsCloseness = 1 if (nextMaxVal and maxVal / nextMaxVal <= 8) and abs(pos[0]-posNext[0])<=1 and abs(pos[1]-posNext[1])<=1 else 0
+
         maxVal = grid.getMaxTile()
-        maxValInCorner = 1 if grid[0][0]==maxVal or grid[0][-1]==maxVal or grid[-1][0]==maxVal or grid[-1][-1]==maxVal else 0
-        return (maxValInCorner * self.WEIGHTS['max_val_is_in_corner'] * sqrt(maxVal)
+        maxValInCorner = 1 if grid.map[0][0]==maxVal or grid.map[0][-1]==maxVal or grid.map[-1][0]==maxVal or grid.map[-1][-1]==maxVal else 0
+
+        return (maxValInCorner * self.WEIGHTS['max_val_is_in_corner']
                 + maxVal * self.WEIGHTS['maxVal']
                 + max(self.merge_potential_h(grid, LEFT, RIGHT), self.merge_potential_h(grid, UP, DOWN)) * self.WEIGHTS['merge_potential']
                 + (numOfEmptyCells-1) * self.WEIGHTS['empty_cell_bonus'])
@@ -80,6 +84,22 @@ class PlayerAI(BaseAI):
     #     score = 0
     #
     #     return score
+
+    # def get_two_max_vals_w_pos(self, grid):
+    #     maxVal = -inf
+    #     nextMaxVal = maxVal+1
+    #     pos, posNext = None, None
+    #
+    #     for r, row in enumerate(grid.map):
+    #         for c, val in enumerate(row):
+    #             if val > maxVal:
+    #                 maxVal, nextMaxVal = val, maxVal
+    #                 pos, posNext = (r,c), pos
+    #             elif val > nextMaxVal:
+    #                 nextMaxVal = val
+    #                 posNext = (r,c)
+
+        return maxVal, pos, nextMaxVal, posNext
 
     def merge_potential_h(self, grid, dir, dirOpp):
         movedGrid = grid.clone()
